@@ -1,0 +1,22 @@
+{
+  "environment": "LIVE",
+  "razorpay": {
+    "enabled": true,
+    "keyId": "rzp_live_brijeshwari_key",
+    "keySecret": "secret_key_brijeshwari"
+  },
+  "stripe": {
+    "enabled": true,
+    "publishableKey": "pk_live_brijeshwari",
+    "secretKey": "sk_live_brijeshwari"
+  },
+  "upi": {
+    "enabled": true,
+    "vpa": "brijeshwari@upi",
+    "merchantName": "Brijeshwari Creations Heritage"
+  },
+  "cod": {
+    "enabled": true,
+    "minAmount": 0
+  }
+}
