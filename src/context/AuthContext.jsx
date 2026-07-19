@@ -10,11 +10,7 @@ export const ADMIN_EMAILS = [
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    name: "Master Admin",
-    email: "mtech.nim3@gmail.com",
-    role: "admin"
-  });
+  const [user, setUser] = useState(null);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authAnimation, setAuthAnimation] = useState(null);

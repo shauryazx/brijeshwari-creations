@@ -26,10 +26,10 @@ export const AuthModal = () => {
   const [userOrders, setUserOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
-  // Form fields
+  // Form fields - Empty defaults, no pre-filled examples
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('maharaja@brijeshwari.com');
-  const [password, setPassword] = useState('••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const loadUserOrders = async () => {
     if (!user) return;
@@ -286,7 +286,7 @@ export const AuthModal = () => {
                     <input
                       type="text"
                       required={isRegisterMode}
-                      placeholder="e.g. Maharani Gayatri Devi"
+                      placeholder="Enter your full name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full pl-9 pr-3 py-2.5 text-xs border border-stone-300 rounded-xl focus:outline-none focus:border-brand-terracotta"
@@ -302,7 +302,7 @@ export const AuthModal = () => {
                   <input
                     type="email"
                     required
-                    placeholder="maharaja@brijeshwari.com"
+                    placeholder="Enter your email address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-9 pr-3 py-2.5 text-xs border border-stone-300 rounded-xl focus:outline-none focus:border-brand-terracotta"
@@ -317,6 +317,7 @@ export const AuthModal = () => {
                   <input
                     type="password"
                     required
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-9 pr-3 py-2.5 text-xs border border-stone-300 rounded-xl focus:outline-none focus:border-brand-terracotta"
