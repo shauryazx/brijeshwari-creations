@@ -30,7 +30,9 @@ import {
   Globe,
   Layout,
   ExternalLink,
-  Link2
+  Link2,
+  Flame,
+  Cloud
 } from 'lucide-react';
 import { 
   fetchAdminStats, 
@@ -49,6 +51,7 @@ import {
   fetchSiteConfig,
   updateSiteConfig
 } from '../services/api';
+import { getStoredFirebaseConfig, initFirebase } from '../config/firebase';
 import { playLoudOrderRingSound, stopLoudOrderRingSound } from '../services/sound';
 import { useCart } from '../context/CartContext';
 
@@ -108,6 +111,11 @@ export const AdminPanel = ({ onBackToStore }) => {
   });
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentSavedMsg, setPaymentSavedMsg] = useState(null);
+
+  // Firebase Setup State
+  const [firebaseForm, setFirebaseForm] = useState(() => getStoredFirebaseConfig());
+  const [savingFirebase, setSavingFirebase] = useState(false);
+  const [firebaseSavedMsg, setFirebaseSavedMsg] = useState(null);
 
   // Home Screen Banners & Graphics State
   const [siteConfig, setSiteConfig] = useState({
@@ -231,7 +239,21 @@ export const AdminPanel = ({ onBackToStore }) => {
     }
   };
 
-  // Handle Saving Site Banners & Graphics Setup
+  // Handle Saving Firebase Configuration
+  const handleSaveFirebaseConfig = (e) => {
+    e.preventDefault();
+    setSavingFirebase(true);
+    setFirebaseSavedMsg(null);
+
+    localStorage.setItem('brijeshwari_firebase_config', JSON.stringify(firebaseForm));
+    initFirebase(firebaseForm);
+    setSavingFirebase(false);
+
+    setFirebaseSavedMsg("🔥 Firebase Cloud Storage Credentials Saved & Connected Live!");
+    setTimeout(() => setFirebaseSavedMsg(null), 4000);
+  };
+
+  // Handle Saving Site Banners & Graphics Setup (Uploads to Firebase Storage)
   const handleSaveSiteConfig = async (e) => {
     e.preventDefault();
     setSavingSiteConfig(true);
@@ -241,8 +263,9 @@ export const AdminPanel = ({ onBackToStore }) => {
     setSavingSiteConfig(false);
 
     if (res && res.success) {
+      if (res.config) setSiteConfig(res.config);
       setSiteConfigDirty(false);
-      setSiteSavedMsg("✨ Home Screen Banners & Images Updated LIVE Successfully!");
+      setSiteSavedMsg("🔥 Home Screen Banners & Images Saved to Firebase Cloud Storage!");
       setTimeout(() => setSiteSavedMsg(null), 4000);
     } else {
       alert("Failed to update home screen configuration.");
@@ -461,7 +484,7 @@ export const AdminPanel = ({ onBackToStore }) => {
             Brijeshwari Admin Dashboard
           </h1>
           <p className="text-xs text-stone-500">
-            Full Website Customization • Section Builder & Button Redirect Links Control
+            Firebase Cloud Storage Integrated • Section Builder & Button Redirect Links Control
           </p>
         </div>
 
@@ -515,6 +538,17 @@ export const AdminPanel = ({ onBackToStore }) => {
           }`}
         >
           <Layout size={18} /> Home Banners & Redirect Links 🔗 {siteConfigDirty && <span className="w-2 h-2 bg-amber-500 rounded-full animate-ping" />}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('FIREBASE')}
+          className={`flex items-center gap-2 pb-3 px-4 font-bold text-sm border-b-2 transition-all ${
+            activeTab === 'FIREBASE' 
+              ? 'border-brand-terracotta text-brand-terracotta' 
+              : 'border-transparent text-stone-500 hover:text-stone-800'
+          }`}
+        >
+          <Flame size={18} className="text-amber-500" /> Firebase Cloud Storage 🔥
         </button>
 
         <button
@@ -670,7 +704,7 @@ export const AdminPanel = ({ onBackToStore }) => {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="font-serif text-xl font-bold text-brand-charcoal">Manage Products</h3>
-              <p className="text-xs text-stone-500">Upload images from your computer and modify stock/pricing</p>
+              <p className="text-xs text-stone-500">Upload images from your computer to Firebase Cloud Storage and modify stock/pricing</p>
             </div>
             <button
               onClick={openAddProductModal}
@@ -840,8 +874,8 @@ export const AdminPanel = ({ onBackToStore }) => {
 
                   <div className="p-4 bg-white rounded-2xl border-2 border-dashed border-stone-300 space-y-3 text-center">
                     <div className="flex items-center justify-center gap-2 font-bold text-stone-700">
-                      <Upload size={18} className="text-brand-terracotta" />
-                      <span>Upload Product Images From Computer</span>
+                      <Flame size={18} className="text-amber-500" />
+                      <span>Upload Product Images To Firebase Cloud Storage</span>
                     </div>
                     
                     <input
@@ -900,7 +934,130 @@ export const AdminPanel = ({ onBackToStore }) => {
         </div>
       )}
 
-      {/* TAB 3: HOME BANNERS & GRAPHICS MANAGER WITH DYNAMIC SECTION BUILDER */}
+      {/* TAB 3: FIREBASE CLOUD STORAGE SETUP */}
+      {activeTab === 'FIREBASE' && (
+        <form onSubmit={handleSaveFirebaseConfig} className="space-y-8 animate-fadeIn">
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300 flex items-center gap-1.5 w-fit">
+                <Flame size={14} className="text-amber-600" /> FIREBASE CLOUD STORAGE & FIRESTORE SETUP
+              </span>
+              <h3 className="font-serif text-2xl font-black text-brand-charcoal mt-1">
+                Firebase Web SDK Credentials & Storage Bucket
+              </h3>
+              <p className="text-xs text-stone-500">All photos and website configurations save directly to your Firebase Cloud project</p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingFirebase}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-7 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all"
+            >
+              <Save size={16} />
+              {savingFirebase ? 'Saving Firebase...' : 'Save & Connect Firebase Live'}
+            </button>
+          </div>
+
+          {firebaseSavedMsg && (
+            <div className="p-4 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-2xl text-xs font-extrabold flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 size={18} className="text-emerald-700" />
+              <span>{firebaseSavedMsg}</span>
+            </div>
+          )}
+
+          <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-6">
+            
+            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-500 text-white rounded-xl">
+                  <Cloud size={24} />
+                </div>
+                <div>
+                  <h4 className="font-serif font-bold text-sm text-brand-charcoal">Firebase Cloud Storage Active</h4>
+                  <p className="text-stone-600 text-[11px]">When uploading images from PC, photos automatically convert to Firebase HTTPS Cloud URLs.</p>
+                </div>
+              </div>
+
+              <span className="bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase px-3 py-1 rounded-full border border-emerald-300 flex items-center gap-1">
+                <CheckCircle size={14} /> LIVE CONNECTED
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              
+              <div>
+                <label className="font-bold text-stone-700 block mb-1">Firebase API Key</label>
+                <input
+                  type="text"
+                  required
+                  value={firebaseForm.apiKey || ''}
+                  onChange={(e) => setFirebaseForm({ ...firebaseForm, apiKey: e.target.value })}
+                  className="w-full p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-brand-terracotta"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-stone-700 block mb-1">Auth Domain</label>
+                <input
+                  type="text"
+                  required
+                  value={firebaseForm.authDomain || ''}
+                  onChange={(e) => setFirebaseForm({ ...firebaseForm, authDomain: e.target.value })}
+                  className="w-full p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-brand-terracotta"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-stone-700 block mb-1">Project ID</label>
+                <input
+                  type="text"
+                  required
+                  value={firebaseForm.projectId || ''}
+                  onChange={(e) => setFirebaseForm({ ...firebaseForm, projectId: e.target.value })}
+                  className="w-full p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-brand-terracotta"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-stone-700 block mb-1">Storage Bucket URL</label>
+                <input
+                  type="text"
+                  required
+                  value={firebaseForm.storageBucket || ''}
+                  onChange={(e) => setFirebaseForm({ ...firebaseForm, storageBucket: e.target.value })}
+                  className="w-full p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-brand-terracotta"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-stone-700 block mb-1">Messaging Sender ID</label>
+                <input
+                  type="text"
+                  value={firebaseForm.messagingSenderId || ''}
+                  onChange={(e) => setFirebaseForm({ ...firebaseForm, messagingSenderId: e.target.value })}
+                  className="w-full p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-brand-terracotta"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-stone-700 block mb-1">App ID</label>
+                <input
+                  type="text"
+                  value={firebaseForm.appId || ''}
+                  onChange={(e) => setFirebaseForm({ ...firebaseForm, appId: e.target.value })}
+                  className="w-full p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-brand-terracotta"
+                />
+              </div>
+
+            </div>
+
+          </div>
+
+        </form>
+      )}
+
+      {/* TAB 4: HOME BANNERS & GRAPHICS MANAGER WITH DYNAMIC SECTION BUILDER */}
       {activeTab === 'HOME_GRAPHICS' && (
         <form onSubmit={handleSaveSiteConfig} className="space-y-8 animate-fadeIn">
           
@@ -912,7 +1069,7 @@ export const AdminPanel = ({ onBackToStore }) => {
               <h3 className="font-serif text-2xl font-black text-brand-charcoal mt-1">
                 Customize Home Screen Images, Sections & Button Redirect Links
               </h3>
-              <p className="text-xs text-stone-500">Upload images from PC, edit titles, add unlimited sections, and set button click targets</p>
+              <p className="text-xs text-stone-500">Upload images from PC directly to Firebase Cloud Storage, edit titles & button targets</p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -930,7 +1087,7 @@ export const AdminPanel = ({ onBackToStore }) => {
                 className="bg-brand-terracotta hover:bg-brand-terracottaDark text-white font-extrabold text-xs px-7 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all"
               >
                 <Save size={16} />
-                {savingSiteConfig ? 'Saving Website...' : 'Save & Update Home Screen Live'}
+                {savingSiteConfig ? 'Uploading to Firebase...' : 'Save & Deploy to Firebase Cloud'}
               </button>
             </div>
           </div>
@@ -945,7 +1102,7 @@ export const AdminPanel = ({ onBackToStore }) => {
           {siteConfigDirty && (
             <div className="p-3 bg-amber-100 border border-amber-300 text-amber-900 rounded-xl text-xs font-bold flex items-center gap-2">
               <AlertTriangle size={16} className="text-amber-700" />
-              <span>You have unsaved changes! Click "Save & Update Home Screen Live" above to apply your edits.</span>
+              <span>You have unsaved changes! Click "Save & Deploy to Firebase Cloud" above to upload your photos.</span>
             </div>
           )}
 
@@ -1221,7 +1378,7 @@ export const AdminPanel = ({ onBackToStore }) => {
         </form>
       )}
 
-      {/* TAB 4: CATEGORY MANAGER */}
+      {/* TAB 5: CATEGORY MANAGER */}
       {activeTab === 'CATEGORIES' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
@@ -1341,7 +1498,7 @@ export const AdminPanel = ({ onBackToStore }) => {
         </div>
       )}
 
-      {/* TAB 5: REAL PAYMENT GATEWAY SETUP */}
+      {/* TAB 6: REAL PAYMENT GATEWAY SETUP */}
       {activeTab === 'PAYMENT_SETUP' && (
         <form onSubmit={handleSavePaymentConfig} className="space-y-8 animate-fadeIn">
           
@@ -1619,7 +1776,7 @@ export const AdminPanel = ({ onBackToStore }) => {
         </form>
       )}
 
-      {/* TAB 6: ANALYTICS & METRICS */}
+      {/* TAB 7: ANALYTICS & METRICS */}
       {activeTab === 'ANALYTICS' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

@@ -1,3 +1,9 @@
+import { 
+  uploadImageToFirebase, 
+  saveSiteConfigToFirebase, 
+  getSiteConfigFromFirebase 
+} from '../config/firebase.js';
+
 const API_BASE = '/api';
 
 // Fetch products with optional filtering
@@ -20,9 +26,17 @@ export const fetchProducts = async (params = {}) => {
   return { success: false, products: [] };
 };
 
-// Add product
+// Add product (uploads images to Firebase Cloud Storage)
 export const addProduct = async (productData) => {
   try {
+    // Process photos through Firebase Cloud Storage if base64 Data URLs
+    if (productData.images && productData.images.length > 0) {
+      const cloudImages = await Promise.all(
+        productData.images.map((img, idx) => uploadImageToFirebase(img, `product_${Date.now()}_${idx}`))
+      );
+      productData.images = cloudImages;
+    }
+
     const res = await fetch(`${API_BASE}/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,6 +52,13 @@ export const addProduct = async (productData) => {
 // Update product
 export const updateProduct = async (id, productData) => {
   try {
+    if (productData.images && productData.images.length > 0) {
+      const cloudImages = await Promise.all(
+        productData.images.map((img, idx) => uploadImageToFirebase(img, `product_${Date.now()}_${idx}`))
+      );
+      productData.images = cloudImages;
+    }
+
     const res = await fetch(`${API_BASE}/products/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -221,17 +242,12 @@ export const updateAdminPaymentConfig = async (configPayload) => {
   return { success: false };
 };
 
-// Fetch site configuration (Home screen images & text)
+// Fetch site configuration (Home screen images & text from Firebase & API)
 export const fetchSiteConfig = async () => {
-  // Check client-side localStorage backup first (Vercel Serverless persistence)
-  const local = typeof window !== 'undefined' ? localStorage.getItem('brijeshwari_site_config') : null;
-  if (local) {
-    try {
-      const parsed = JSON.parse(local);
-      if (parsed && parsed.heroBanner) {
-        return { success: true, config: parsed };
-      }
-    } catch (e) {}
+  // Check Firebase / local storage first
+  const firebaseConfig = await getSiteConfigFromFirebase();
+  if (firebaseConfig && firebaseConfig.heroBanner) {
+    return { success: true, config: firebaseConfig };
   }
 
   try {
@@ -249,30 +265,55 @@ export const fetchSiteConfig = async () => {
   return { success: false };
 };
 
-// Update site configuration (Home screen images & text)
+// Update site configuration (Uploads all banner photos to Firebase Cloud Storage & Firestore)
 export const updateSiteConfig = async (siteConfigPayload) => {
-  // Save to client-side localStorage first (ensures instant persistence on Vercel)
   try {
-    localStorage.setItem('brijeshwari_site_config', JSON.stringify(siteConfigPayload));
-  } catch (e) {
-    console.warn("localStorage quota full:", e);
-  }
+    const payload = JSON.parse(JSON.stringify(siteConfigPayload));
 
-  try {
-    const res = await fetch(`${API_BASE}/admin/site-config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(siteConfigPayload)
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success) return data;
+    // Upload Hero images to Firebase Storage if base64 Data URLs
+    if (payload.heroBanner) {
+      if (payload.heroBanner.heroImage) {
+        payload.heroBanner.heroImage = await uploadImageToFirebase(payload.heroBanner.heroImage, `hero_model_${Date.now()}`);
+      }
+      if (payload.heroBanner.urliImage) {
+        payload.heroBanner.urliImage = await uploadImageToFirebase(payload.heroBanner.urliImage, `urli_diya_${Date.now()}`);
+      }
     }
-  } catch (err) {
-    console.error("Error updating site config on server API:", err);
-  }
 
-  // Return success true because localStorage saved it for client Vercel mode!
-  return { success: true, message: "Home screen configuration saved and deployed!" };
+    // Upload Editorial section images to Firebase Storage
+    if (Array.isArray(payload.sections)) {
+      const updatedSections = await Promise.all(
+        payload.sections.map(async (sec, idx) => {
+          if (sec.image) {
+            sec.image = await uploadImageToFirebase(sec.image, `section_${idx}_${Date.now()}`);
+          }
+          return sec;
+        })
+      );
+      payload.sections = updatedSections;
+    }
+
+    // Save to Firebase Cloud Storage & Firestore
+    await saveSiteConfigToFirebase(payload);
+
+    // Save to API server if available
+    try {
+      const res = await fetch(`${API_BASE}/admin/site-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) return { ...data, config: payload };
+      }
+    } catch (err) {
+      console.warn("API server save fallback to Firebase:", err);
+    }
+
+    return { success: true, message: "🔥 Saved and deployed to Firebase Cloud Storage!", config: payload };
+  } catch (err) {
+    console.error("Error updating site config with Firebase:", err);
+    return { success: false, message: err.message };
+  }
 };
