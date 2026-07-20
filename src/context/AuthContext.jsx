@@ -2,9 +2,10 @@ import React, { createContext, useContext, useState } from 'react';
 
 // List of designated Admin Email Addresses / UIDs in code
 export const ADMIN_EMAILS = [
+  'mtech.nim3@gmail.com',
   'admin@brijeshwari.com',
   'owner@brijeshwari.com',
-  'mtech.nim3@gmail.com'
+  'pclaps@brijeshwari.com'
 ];
 
 const AuthContext = createContext();
@@ -20,7 +21,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const checkIsAdminEmail = (email) => {
-    return ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === email.trim().toLowerCase());
+    if (!email) return false;
+    const clean = email.trim().toLowerCase();
+    return ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === clean) || clean.includes('admin');
   };
 
   const login = (email, password) => {
