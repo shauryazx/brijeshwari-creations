@@ -52,6 +52,38 @@ import {
 import { playLoudOrderRingSound, stopLoudOrderRingSound } from '../services/sound';
 import { useCart } from '../context/CartContext';
 
+// Helper function to compress and downscale high-res PC image files (prevents Vercel 413 Payload Too Large error)
+const compressImage = (file, maxWidth = 1000, quality = 0.8) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 export const AdminPanel = ({ onBackToStore }) => {
   const { formatPrice } = useCart();
   const [activeTab, setActiveTab] = useState('ORDERS');
@@ -210,7 +242,7 @@ export const AdminPanel = ({ onBackToStore }) => {
 
     if (res && res.success) {
       setSiteConfigDirty(false);
-      setSiteSavedMsg("✨ Home Screen Banners, Redirect Links & Custom Sections Deployed LIVE!");
+      setSiteSavedMsg("✨ Home Screen Banners & Images Updated LIVE Successfully!");
       setTimeout(() => setSiteSavedMsg(null), 4000);
     } else {
       alert("Failed to update home screen configuration.");
@@ -246,30 +278,24 @@ export const AdminPanel = ({ onBackToStore }) => {
     }
   };
 
-  // Single Image Upload Helper
-  const handleSingleImageUpload = (e, callback) => {
+  // Single Image Upload Helper with Automatic Downscaling/Compression
+  const handleSingleImageUpload = async (e, callback) => {
     const file = e.target.files[0];
     if (!file) return;
     setSiteConfigDirty(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      callback(reader.result);
-    };
-    reader.readAsDataURL(file);
+    const compressedDataUrl = await compressImage(file);
+    callback(compressedDataUrl);
   };
 
-  // Product Image Upload handler
+  // Product Image Upload handler with Automatic Downscaling/Compression
   const handleImageFileUpload = (e) => {
     const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProductForm(prev => ({
-          ...prev,
-          images: [...prev.images, reader.result]
-        }));
-      };
-      reader.readAsDataURL(file);
+    files.forEach(async file => {
+      const compressedDataUrl = await compressImage(file);
+      setProductForm(prev => ({
+        ...prev,
+        images: [...prev.images, compressedDataUrl]
+      }));
     });
   };
 
