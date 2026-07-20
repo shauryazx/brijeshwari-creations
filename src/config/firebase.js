@@ -49,6 +49,38 @@ export const initFirebase = (customConfig) => {
 // Auto-initialize
 initFirebase();
 
+// Live Diagnostic Test for Firebase Storage & Firestore
+export const testFirebaseConnection = async () => {
+  try {
+    const { storage, db } = initFirebase();
+    if (!storage) return { success: false, error: "Firebase storage not initialized" };
+
+    // Small 1x1 transparent GIF base64 string for testing
+    const testBase64 = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    const testRef = ref(storage, `diagnostics/test_${Date.now()}.gif`);
+    
+    await uploadString(testRef, testBase64, 'data_url');
+    const url = await getDownloadURL(testRef);
+
+    // Save test doc to Firestore
+    if (db) {
+      await setDoc(doc(db, 'diagnostics', 'test_doc'), { timestamp: new Date().toISOString() });
+    }
+
+    return {
+      success: true,
+      message: "🔥 Firebase Cloud Storage & Firestore uploaded and verified live successfully!",
+      downloadUrl: url
+    };
+  } catch (err) {
+    console.error("Firebase Diagnostic Test Failed:", err);
+    return {
+      success: false,
+      error: err.message || "Failed to upload test file to Firebase Storage. Please check bucket rules or credentials."
+    };
+  }
+};
+
 // Upload Image to Firebase Storage (with base64 fallback)
 export const uploadImageToFirebase = async (base64OrUrl, filename) => {
   if (!base64OrUrl) return '';
@@ -68,17 +100,21 @@ export const uploadImageToFirebase = async (base64OrUrl, filename) => {
       return downloadUrl;
     }
   } catch (err) {
-    console.warn("Firebase Storage upload fallback:", err);
+    console.warn("Firebase Storage upload fallback to local state:", err);
   }
 
   // Fallback: return data URL directly
   return base64OrUrl;
 };
 
-// Save Site Config to Firebase Firestore & localStorage
+// Save Site Config to Firebase Firestore, localStorage & Event Dispatch
 export const saveSiteConfigToFirebase = async (siteConfig) => {
   try {
     localStorage.setItem('brijeshwari_site_config', JSON.stringify(siteConfig));
+    // Trigger custom event for 0ms instant storefront update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('brijeshwari_site_config_updated', { detail: siteConfig }));
+    }
   } catch (e) {}
 
   try {
@@ -111,11 +147,13 @@ export const getSiteConfigFromFirebase = async () => {
   }
 
   // Local Storage fallback
-  const stored = localStorage.getItem('brijeshwari_site_config');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {}
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('brijeshwari_site_config');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {}
+    }
   }
   return null;
 };

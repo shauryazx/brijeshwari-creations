@@ -33,7 +33,6 @@ export const CategoryShowcase = ({ onSelectCategory }) => {
   const loadSiteConfig = async () => {
     const res = await fetchSiteConfig();
     if (res && res.config && res.config.sections) {
-      // Handle array format or legacy object format gracefully
       if (Array.isArray(res.config.sections)) {
         setSections(res.config.sections);
       } else {
@@ -45,10 +44,26 @@ export const CategoryShowcase = ({ onSelectCategory }) => {
 
   useEffect(() => {
     loadSiteConfig();
+
+    const handleInstantUpdate = (e) => {
+      if (e.detail && e.detail.sections) {
+        if (Array.isArray(e.detail.sections)) {
+          setSections(e.detail.sections);
+        }
+      } else {
+        loadSiteConfig();
+      }
+    };
+
+    window.addEventListener('brijeshwari_site_config_updated', handleInstantUpdate);
     const pollInterval = setInterval(() => {
       loadSiteConfig();
     }, 2000);
-    return () => clearInterval(pollInterval);
+
+    return () => {
+      window.removeEventListener('brijeshwari_site_config_updated', handleInstantUpdate);
+      clearInterval(pollInterval);
+    };
   }, []);
 
   const handleSectionButtonClick = (targetCategory) => {

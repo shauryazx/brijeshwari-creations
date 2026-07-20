@@ -22,10 +22,25 @@ export const HeroBanner = ({ onShopCategory }) => {
 
   useEffect(() => {
     loadSiteConfig();
+
+    // 0ms INSTANT UPDATE LISTENER: Update banner image instantly when saved in Admin
+    const handleInstantUpdate = (e) => {
+      if (e.detail && e.detail.heroBanner) {
+        setHeroData(e.detail.heroBanner);
+      } else {
+        loadSiteConfig();
+      }
+    };
+
+    window.addEventListener('brijeshwari_site_config_updated', handleInstantUpdate);
     const pollInterval = setInterval(() => {
       loadSiteConfig();
     }, 2000);
-    return () => clearInterval(pollInterval);
+
+    return () => {
+      window.removeEventListener('brijeshwari_site_config_updated', handleInstantUpdate);
+      clearInterval(pollInterval);
+    };
   }, []);
 
   const handleHeroButtonClick = () => {

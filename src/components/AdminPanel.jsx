@@ -32,7 +32,8 @@ import {
   ExternalLink,
   Link2,
   Flame,
-  Cloud
+  Cloud,
+  FlaskConical
 } from 'lucide-react';
 import { 
   fetchAdminStats, 
@@ -51,7 +52,7 @@ import {
   fetchSiteConfig,
   updateSiteConfig
 } from '../services/api';
-import { getStoredFirebaseConfig, initFirebase } from '../config/firebase';
+import { getStoredFirebaseConfig, initFirebase, testFirebaseConnection } from '../config/firebase';
 import { playLoudOrderRingSound, stopLoudOrderRingSound } from '../services/sound';
 import { useCart } from '../context/CartContext';
 
@@ -116,6 +117,8 @@ export const AdminPanel = ({ onBackToStore }) => {
   const [firebaseForm, setFirebaseForm] = useState(() => getStoredFirebaseConfig());
   const [savingFirebase, setSavingFirebase] = useState(false);
   const [firebaseSavedMsg, setFirebaseSavedMsg] = useState(null);
+  const [testingFirebase, setTestingFirebase] = useState(false);
+  const [firebaseTestResult, setFirebaseTestResult] = useState(null);
 
   // Home Screen Banners & Graphics State
   const [siteConfig, setSiteConfig] = useState({
@@ -249,8 +252,17 @@ export const AdminPanel = ({ onBackToStore }) => {
     initFirebase(firebaseForm);
     setSavingFirebase(false);
 
-    setFirebaseSavedMsg("🔥 Firebase Cloud Storage Credentials Saved & Connected Live!");
+    setFirebaseSavedMsg("🔥 Firebase Credentials Saved & Connected Live!");
     setTimeout(() => setFirebaseSavedMsg(null), 4000);
+  };
+
+  // Run Firebase Connection Diagnostic Test
+  const handleTestFirebase = async () => {
+    setTestingFirebase(true);
+    setFirebaseTestResult(null);
+    const result = await testFirebaseConnection();
+    setTestingFirebase(false);
+    setFirebaseTestResult(result);
   };
 
   // Handle Saving Site Banners & Graphics Setup (Uploads to Firebase Storage)
@@ -265,7 +277,7 @@ export const AdminPanel = ({ onBackToStore }) => {
     if (res && res.success) {
       if (res.config) setSiteConfig(res.config);
       setSiteConfigDirty(false);
-      setSiteSavedMsg("🔥 Home Screen Banners & Images Saved to Firebase Cloud Storage!");
+      setSiteSavedMsg("🔥 Home Screen Banners & Images Deployed LIVE!");
       setTimeout(() => setSiteSavedMsg(null), 4000);
     } else {
       alert("Failed to update home screen configuration.");
@@ -944,20 +956,46 @@ export const AdminPanel = ({ onBackToStore }) => {
                 <Flame size={14} className="text-amber-600" /> FIREBASE CLOUD STORAGE & FIRESTORE SETUP
               </span>
               <h3 className="font-serif text-2xl font-black text-brand-charcoal mt-1">
-                Firebase Web SDK Credentials & Storage Bucket
+                Firebase Web SDK Credentials & Live Connection Tester
               </h3>
               <p className="text-xs text-stone-500">All photos and website configurations save directly to your Firebase Cloud project</p>
             </div>
 
-            <button
-              type="submit"
-              disabled={savingFirebase}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-7 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all"
-            >
-              <Save size={16} />
-              {savingFirebase ? 'Saving Firebase...' : 'Save & Connect Firebase Live'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleTestFirebase}
+                disabled={testingFirebase}
+                className="bg-brand-charcoal hover:bg-stone-800 text-brand-gold font-bold text-xs px-5 py-3 rounded-2xl shadow-md flex items-center gap-2"
+              >
+                <FlaskConical size={16} />
+                {testingFirebase ? 'Testing Connection...' : 'Test Firebase Connection Live'}
+              </button>
+
+              <button
+                type="submit"
+                disabled={savingFirebase}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-7 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all"
+              >
+                <Save size={16} />
+                {savingFirebase ? 'Saving Firebase...' : 'Save & Connect Firebase Live'}
+              </button>
+            </div>
           </div>
+
+          {firebaseTestResult && (
+            <div className={`p-4 rounded-2xl text-xs font-bold border flex items-center gap-3 animate-fadeIn ${
+              firebaseTestResult.success 
+                ? 'bg-emerald-100 border-emerald-300 text-emerald-900' 
+                : 'bg-rose-100 border-rose-300 text-rose-900'
+            }`}>
+              {firebaseTestResult.success ? <CheckCircle2 size={20} className="text-emerald-700" /> : <AlertTriangle size={20} className="text-rose-700" />}
+              <div>
+                <span className="block font-extrabold">{firebaseTestResult.success ? 'Firebase Test Succeeded!' : 'Firebase Verification Notice'}</span>
+                <p className="font-normal mt-0.5">{firebaseTestResult.message || firebaseTestResult.error}</p>
+              </div>
+            </div>
+          )}
 
           {firebaseSavedMsg && (
             <div className="p-4 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-2xl text-xs font-extrabold flex items-center gap-2 animate-fadeIn">
