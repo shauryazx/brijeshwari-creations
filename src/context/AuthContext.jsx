@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState } from 'react';
 export const ADMIN_EMAILS = [
   'admin@brijeshwari.com',
   'owner@brijeshwari.com',
-  'pclaps@brijeshwari.com'
+  'mtech.nim3@gmail.com'
 ];
 
 const AuthContext = createContext();
