@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
 // Default / Active Firebase Configuration for Brijeshwari Creations
 const DEFAULT_FIREBASE_CONFIG = {
@@ -10,6 +10,28 @@ const DEFAULT_FIREBASE_CONFIG = {
   storageBucket: "brijeshwari-creations.appspot.com",
   messagingSenderId: "109876543210",
   appId: "1:109876543210:web:abcdef123456"
+};
+
+// Helper: 3-Second Timeout Wrapper to prevent hanging promises
+const withTimeout = (promise, timeoutMs = 3000, fallbackValue = null) => {
+  let timeoutId;
+  const timeoutPromise = new Promise((resolve) => {
+    timeoutId = setTimeout(() => {
+      console.warn(`Firebase network operation timed out after ${timeoutMs}ms (using instant fallback)`);
+      resolve(fallbackValue);
+    }, timeoutMs);
+  });
+
+  return Promise.race([
+    promise.then((res) => {
+      clearTimeout(timeoutId);
+      return res;
+    }).catch((err) => {
+      clearTimeout(timeoutId);
+      throw err;
+    }),
+    timeoutPromise
+  ]);
 };
 
 // Get stored Firebase config or default
@@ -49,11 +71,11 @@ export const initFirebase = (customConfig) => {
 // Auto-initialize
 initFirebase();
 
-// Live Diagnostic Test for Firebase Storage & Firestore
+// Live Diagnostic Test for Firebase Storage & Firestore (guaranteed 3s max execution time)
 export const testFirebaseConnection = async () => {
-  try {
+  const testExecution = async () => {
     const { storage, db } = initFirebase();
-    if (!storage) return { success: false, error: "Firebase storage not initialized" };
+    if (!storage) return { success: false, error: "Firebase Storage not initialized." };
 
     // Small 1x1 transparent GIF base64 string for testing
     const testBase64 = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -62,7 +84,6 @@ export const testFirebaseConnection = async () => {
     await uploadString(testRef, testBase64, 'data_url');
     const url = await getDownloadURL(testRef);
 
-    // Save test doc to Firestore
     if (db) {
       await setDoc(doc(db, 'diagnostics', 'test_doc'), { timestamp: new Date().toISOString() });
     }
@@ -72,16 +93,15 @@ export const testFirebaseConnection = async () => {
       message: "🔥 Firebase Cloud Storage & Firestore uploaded and verified live successfully!",
       downloadUrl: url
     };
-  } catch (err) {
-    console.error("Firebase Diagnostic Test Failed:", err);
-    return {
-      success: false,
-      error: err.message || "Failed to upload test file to Firebase Storage. Please check bucket rules or credentials."
-    };
-  }
+  };
+
+  return await withTimeout(testExecution(), 3500, {
+    success: false,
+    error: "Firebase connection timed out after 3.5s. Please check if your Firebase Storage bucket is created in Firebase Console."
+  });
 };
 
-// Upload Image to Firebase Storage (with base64 fallback)
+// Upload Image to Firebase Storage (with 3-second timeout & base64 fallback)
 export const uploadImageToFirebase = async (base64OrUrl, filename) => {
   if (!base64OrUrl) return '';
 
@@ -90,7 +110,7 @@ export const uploadImageToFirebase = async (base64OrUrl, filename) => {
     return base64OrUrl;
   }
 
-  try {
+  const uploadExec = async () => {
     const { storage } = initFirebase();
     if (storage && base64OrUrl.startsWith('data:image')) {
       const storageRef = ref(storage, `site_graphics/${filename || Date.now()}.jpg`);
@@ -99,41 +119,48 @@ export const uploadImageToFirebase = async (base64OrUrl, filename) => {
       console.log("Uploaded photo to Firebase Cloud Storage:", downloadUrl);
       return downloadUrl;
     }
-  } catch (err) {
-    console.warn("Firebase Storage upload fallback to local state:", err);
-  }
+    return base64OrUrl;
+  };
 
-  // Fallback: return data URL directly
-  return base64OrUrl;
+  try {
+    const result = await withTimeout(uploadExec(), 3000, base64OrUrl);
+    return result || base64OrUrl;
+  } catch (err) {
+    console.warn("Firebase Storage upload fallback:", err);
+    return base64OrUrl;
+  }
 };
 
 // Save Site Config to Firebase Firestore, localStorage & Event Dispatch
 export const saveSiteConfigToFirebase = async (siteConfig) => {
+  // Save locally first & dispatch event (0ms instant update)
   try {
     localStorage.setItem('brijeshwari_site_config', JSON.stringify(siteConfig));
-    // Trigger custom event for 0ms instant storefront update
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('brijeshwari_site_config_updated', { detail: siteConfig }));
     }
   } catch (e) {}
 
-  try {
+  const saveExec = async () => {
     const { db } = initFirebase();
     if (db) {
       const docRef = doc(db, 'site_config', 'home');
       await setDoc(docRef, siteConfig, { merge: true });
       return { success: true, message: "Saved to Firebase Firestore & Storage!" };
     }
-  } catch (err) {
-    console.warn("Firestore save fallback:", err);
-  }
+    return { success: true, message: "Saved to Client Storage!" };
+  };
 
-  return { success: true, message: "Saved to Client Cloud Storage!" };
+  try {
+    return await withTimeout(saveExec(), 3000, { success: true, message: "Saved to Client Storage!" });
+  } catch (err) {
+    return { success: true, message: "Saved to Client Storage!" };
+  }
 };
 
 // Get Site Config from Firebase Firestore & localStorage
 export const getSiteConfigFromFirebase = async () => {
-  try {
+  const fetchExec = async () => {
     const { db } = initFirebase();
     if (db) {
       const docRef = doc(db, 'site_config', 'home');
@@ -142,9 +169,13 @@ export const getSiteConfigFromFirebase = async () => {
         return docSnap.data();
       }
     }
-  } catch (err) {
-    console.warn("Firestore fetch fallback:", err);
-  }
+    return null;
+  };
+
+  try {
+    const cloudConfig = await withTimeout(fetchExec(), 2000, null);
+    if (cloudConfig) return cloudConfig;
+  } catch (err) {}
 
   // Local Storage fallback
   if (typeof window !== 'undefined') {
